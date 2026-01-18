@@ -1,0 +1,34 @@
+name: Xperia1II-Touch-Fix
+on: [workflow_dispatch, push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Force Touch SSS
+        run: |
+          # Makefile içindeki dokunmatik sürücülerini zorla aktif et
+          find drivers/input/touchscreen/ -name "Makefile" -exec sed -i 's/obj-\$(CONFIG_.*)/obj-y/g' {} +
+          # Xperia 1 II (PDX203) için defconfig ayarları
+          {
+            echo "CONFIG_INPUT_TOUCHSCREEN=y"
+            echo "CONFIG_TOUCHSCREEN_SYNAPTICS_DSX=y"
+            echo "CONFIG_TOUCHSCREEN_FTS=y"
+          } >> arch/arm64/configs/pdx203_defconfig
+
+      - name: Build
+        run: |
+          export ARCH=arm64
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          make O=out pdx203_defconfig
+          make -j$(nproc --all) O=out ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- KCFLAGS="-w"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kernel-PDX203
+          path: out/arch/arm64/boot/Image.gz
