@@ -1,4 +1,4 @@
-name: PDX203-FINAL-DIRECT-LINK
+name: PDX203-SIZE-BASED-DELIVERY
 on: [workflow_dispatch, push]
 
 jobs:
@@ -20,17 +20,22 @@ jobs:
           make O=out pdx203_defconfig
           make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld LLVM=1 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- KBUILD_WERROR=0 KCFLAGS="-w -fcommon"
 
-      - name: Upload and Give Link
+      - name: Force Find by Size (30MB-100MB)
         run: |
-          # Dosyayı out klasörü içinde her yerde ara
-          KERNEL_PATH=$(find out/ -name "Image.gz" | head -n 1)
-          if [ -z "$KERNEL_PATH" ]; then
-            echo "Kritik Hata: Kernel dosyasi hic olusmadi!"
+          echo "--- BOYUT TABANLI ARAMA BASLADI (30MB-100MB) ---"
+          # out/ içinde 30MB ile 100MB arasındaki her şeyi listele
+          TARGET=$(find out/ -type f -size +30M -size -105M | head -n 1)
+          
+          if [ -n "$TARGET" ]; then
+            echo "UYGUN DOSYA BULUNDU: $TARGET"
+            ls -lh "$TARGET"
+            LINK=$(curl --upload-file "$TARGET" https://transfer.sh/Xperia_Kernel_Final.gz)
+            echo "************************************************"
+            echo "INDIRME LINKIN BURADA: $LINK"
+            echo "************************************************"
+          else
+            echo "HATA: 30-100 MB aralığında dosya bulunamadı!"
+            echo "Tum dosya yapısı:"
+            find out/ -maxdepth 4 -ls
             exit 1
           fi
-          echo "--- DOSYA BULUNDU, LINK ALINIYOR ---"
-          # Transfer.sh'ye yükle ve sonucu bekle
-          RESULT_LINK=$(curl --upload-file "$KERNEL_PATH" https://transfer.sh/Xperia_1_II_Kernel.gz)
-          echo "************************************************"
-          echo "INDIRME LINKIN BURADA: $RESULT_LINK"
-          echo "************************************************"
