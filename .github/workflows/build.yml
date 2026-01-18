@@ -39,10 +39,9 @@ jobs:
             KCFLAGS="-w -fcommon"
 
       - name: Export Image
-        run: cp out/arch/arm64/boot/Image.gz . || echo "Image not found, check logs"
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: PDX203-Kernel-Result
-          path: Image.gz
+          path: out/arch/arm64/boot/Image.gz
