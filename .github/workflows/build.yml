@@ -1,4 +1,4 @@
-name: PDX203-FINAL-LINK-DELIVERY
+name: PDX203-FINAL-DIRECT-LINK
 on: [workflow_dispatch, push]
 
 jobs:
@@ -17,21 +17,20 @@ jobs:
         run: |
           export ARCH=arm64
           printf "\nCONFIG_INPUT_TOUCHSCREEN=y\nCONFIG_TOUCHSCREEN_SYNAPTICS_DSX=y\nCONFIG_TOUCHSCREEN_FTS=y\nCONFIG_TOUCHSCREEN_COMMON=y\n" >> arch/arm64/configs/pdx203_defconfig
-          # O=out kullanarak temiz derleme yapıyoruz
           make O=out pdx203_defconfig
           make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld LLVM=1 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- KBUILD_WERROR=0 KCFLAGS="-w -fcommon"
 
       - name: Upload and Give Link
         run: |
-          # Dosyayı bul ve Transfer.sh'ye fırlat
-          KERNEL_FILE=$(find out/ -name "Image.gz" | head -n 1)
-          if [ -n "$KERNEL_FILE" ]; then
-            echo "--- DOSYA BULUNDU, LINK ALINIYOR ---"
-            LINK=$(curl --upload-file "$KERNEL_FILE" https://transfer.sh/Xperia_1_II_Kernel.gz)
-            echo "************************************************"
-            echo "INDIRME LINKIN: $LINK"
-            echo "************************************************"
-          else
-            echo "Hata: Kernel dosyasi bulunamadi!"
+          # Dosyayı out klasörü içinde her yerde ara
+          KERNEL_PATH=$(find out/ -name "Image.gz" | head -n 1)
+          if [ -z "$KERNEL_PATH" ]; then
+            echo "Kritik Hata: Kernel dosyasi hic olusmadi!"
             exit 1
           fi
+          echo "--- DOSYA BULUNDU, LINK ALINIYOR ---"
+          # Transfer.sh'ye yükle ve sonucu bekle
+          RESULT_LINK=$(curl --upload-file "$KERNEL_PATH" https://transfer.sh/Xperia_1_II_Kernel.gz)
+          echo "************************************************"
+          echo "INDIRME LINKIN BURADA: $RESULT_LINK"
+          echo "************************************************"
