@@ -1,4 +1,4 @@
-name: PDX203-ULTIMATE-LINK-DELIVERY
+name: PDX203-FINAL-LINK-DELIVERY
 on: [workflow_dispatch, push]
 
 jobs:
@@ -17,20 +17,21 @@ jobs:
         run: |
           export ARCH=arm64
           printf "\nCONFIG_INPUT_TOUCHSCREEN=y\nCONFIG_TOUCHSCREEN_SYNAPTICS_DSX=y\nCONFIG_TOUCHSCREEN_FTS=y\nCONFIG_TOUCHSCREEN_COMMON=y\n" >> arch/arm64/configs/pdx203_defconfig
-          make pdx203_defconfig
-          make -j$(nproc --all) ARCH=arm64 CC=clang LD=ld.lld LLVM=1 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- KBUILD_WERROR=0 KCFLAGS="-w -fcommon"
+          # O=out kullanarak temiz derleme yapıyoruz
+          make O=out pdx203_defconfig
+          make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld LLVM=1 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- KBUILD_WERROR=0 KCFLAGS="-w -fcommon"
 
-      - name: Upload to Transfer.sh (Link Delivery)
-        # GitHub Artifacts yerine direkt internete yükle ve linki bas!
+      - name: Upload and Give Link
         run: |
-          if [ -f "arch/arm64/boot/Image.gz" ]; then
-            echo "--- DOSYA BULUNDU, LINK HAZIRLANIYOR ---"
-            curl --upload-file arch/arm64/boot/Image.gz https://transfer.sh/Xperia_1_II_Kernel.gz > download_link.txt
-            echo "********************************************"
-            echo "INDIRME LINKIN BURADA:"
-            cat download_link.txt
-            echo "********************************************"
+          # Dosyayı bul ve Transfer.sh'ye fırlat
+          KERNEL_FILE=$(find out/ -name "Image.gz" | head -n 1)
+          if [ -n "$KERNEL_FILE" ]; then
+            echo "--- DOSYA BULUNDU, LINK ALINIYOR ---"
+            LINK=$(curl --upload-file "$KERNEL_FILE" https://transfer.sh/Xperia_1_II_Kernel.gz)
+            echo "************************************************"
+            echo "INDIRME LINKIN: $LINK"
+            echo "************************************************"
           else
-            echo "Hata: Kernel olusmadi!"
+            echo "Hata: Kernel dosyasi bulunamadi!"
             exit 1
           fi
