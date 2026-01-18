@@ -1,4 +1,4 @@
-name: PDX203-SIZE-BASED-DELIVERY
+name: PDX203-FINAL-NO-OUT
 on: [workflow_dispatch, push]
 
 jobs:
@@ -17,25 +17,22 @@ jobs:
         run: |
           export ARCH=arm64
           printf "\nCONFIG_INPUT_TOUCHSCREEN=y\nCONFIG_TOUCHSCREEN_SYNAPTICS_DSX=y\nCONFIG_TOUCHSCREEN_FTS=y\nCONFIG_TOUCHSCREEN_COMMON=y\n" >> arch/arm64/configs/pdx203_defconfig
-          make O=out pdx203_defconfig
-          make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld LLVM=1 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- KBUILD_WERROR=0 KCFLAGS="-w -fcommon"
+          # out klasörü SİLİNDİ - Dosyalar olduğu yerde derlenecek
+          make pdx203_defconfig
+          make -j$(nproc --all) ARCH=arm64 CC=clang LD=ld.lld LLVM=1 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- KBUILD_WERROR=0 KCFLAGS="-w -fcommon"
 
-      - name: Force Find by Size (30MB-100MB)
+      - name: Final Link
         run: |
-          echo "--- BOYUT TABANLI ARAMA BASLADI (30MB-100MB) ---"
-          # out/ içinde 30MB ile 100MB arasındaki her şeyi listele
-          TARGET=$(find out/ -type f -size +30M -size -105M | head -n 1)
-          
-          if [ -n "$TARGET" ]; then
-            echo "UYGUN DOSYA BULUNDU: $TARGET"
-            ls -lh "$TARGET"
-            LINK=$(curl --upload-file "$TARGET" https://transfer.sh/Xperia_Kernel_Final.gz)
+          # Sabit yol, arama yapmaya gerek yok
+          TARGET="arch/arm64/boot/Image.gz"
+          if [ -f "$TARGET" ]; then
+            echo "DOSYA BULUNDU, LINK ALINIYOR..."
+            LINK=$(curl --upload-file "$TARGET" https://transfer.sh/Xperia_Final_Kernel.gz)
             echo "************************************************"
-            echo "INDIRME LINKIN BURADA: $LINK"
+            echo "INDIRME LINKIN: $LINK"
             echo "************************************************"
           else
-            echo "HATA: 30-100 MB aralığında dosya bulunamadı!"
-            echo "Tum dosya yapısı:"
-            find out/ -maxdepth 4 -ls
+            echo "HATA: Dosya standart yolda bulunamadı!"
+            find arch/arm64/boot/ -ls
             exit 1
           fi
