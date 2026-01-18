@@ -1,4 +1,4 @@
-name: PDX203-Final-Clean-Build
+name: PDX203-KERNEL-DELIVERY
 on: [workflow_dispatch, push]
 
 jobs:
@@ -13,31 +13,29 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc build-essential clang llvm lld libssl-dev git python3-minimal gcc-aarch64-linux-gnu
 
-      - name: Configure PDX203 Touch
+      - name: Build with Clang (Modern Method)
         run: |
+          export ARCH=arm64
+          # Dokunmatik sürücüleri enjeksiyonu
           {
             echo "CONFIG_INPUT_TOUCHSCREEN=y"
             echo "CONFIG_TOUCHSCREEN_SYNAPTICS_DSX=y"
             echo "CONFIG_TOUCHSCREEN_FTS=y"
             echo "CONFIG_TOUCHSCREEN_COMMON=y"
           } >> arch/arm64/configs/pdx203_defconfig
-
-      - name: Build with Clang (Ultimate Stability)
-        run: |
-          export ARCH=arm64
+          
           make O=out pdx203_defconfig
-          make -j$(nproc --all) O=out \
-            ARCH=arm64 \
-            CC=clang \
-            LD=ld.lld \
-            LLVM=1 \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            CROSS_COMPILE=aarch64-linux-gnu- \
-            KBUILD_WERROR=0 \
-            KCFLAGS="-w -fcommon"
+          make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld LLVM=1 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- KBUILD_WERROR=0 KCFLAGS="-w -fcommon"
 
-      - name: Upload Artifact
+      - name: Force Extraction
+        # Dosyayı out klasöründen ana dizine zorla kopyalıyoruz
+        run: |
+          find out/ -name "Image.gz" -exec cp {} . \;
+          ls -l Image.gz || echo "Copy failed!"
+
+      - name: Upload Kernel
         uses: actions/upload-artifact@v4
         with:
-          name: PDX203-Kernel-Final
-          path: "**/Image.gz"
+          name: PDX203-Xperia-Kernel
+          # Artık dosya ana dizinde, kesinlikle bulacak
+          path: Image.gz
