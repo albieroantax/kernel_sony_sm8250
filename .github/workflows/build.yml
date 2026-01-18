@@ -1,55 +1,36 @@
-name: PDX203-ZERO-ERROR-FINAL
+name: PDX203-ULTIMATE-LINK-DELIVERY
 on: [workflow_dispatch, push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Build Environment
+      - name: Setup
         run: |
           sudo apt-get update
-          # zlib ve libelf: Image.gz paketleme hatalarını önlemek için kritik
-          sudo apt-get install -y bc build-essential clang llvm lld libssl-dev git python3-minimal gcc-aarch64-linux-gnu zlib1g-dev libelf-dev
+          sudo apt-get install -y bc build-essential clang llvm lld libssl-dev git python3-minimal gcc-aarch64-linux-gnu zlib1g-dev libelf-dev curl
 
-      - name: Kernel Configuration & Touch Fix
+      - name: Build
         run: |
           export ARCH=arm64
-          # Dokunmatik sürücülerini defconfig'e en güvenli yöntemle (printf) ekle
           printf "\nCONFIG_INPUT_TOUCHSCREEN=y\nCONFIG_TOUCHSCREEN_SYNAPTICS_DSX=y\nCONFIG_TOUCHSCREEN_FTS=y\nCONFIG_TOUCHSCREEN_COMMON=y\n" >> arch/arm64/configs/pdx203_defconfig
           make pdx203_defconfig
+          make -j$(nproc --all) ARCH=arm64 CC=clang LD=ld.lld LLVM=1 CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- KBUILD_WERROR=0 KCFLAGS="-w -fcommon"
 
-      - name: Build Kernel (No Out Folder)
-        run: |
-          # 'O=out' kullanmıyoruz; dosya karmaşasını kökten bitirdik
-          make -j$(nproc --all) \
-            ARCH=arm64 \
-            CC=clang \
-            LD=ld.lld \
-            LLVM=1 \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            CROSS_COMPILE=aarch64-linux-gnu- \
-            KBUILD_WERROR=0 \
-            KCFLAGS="-w -fcommon"
-
-      - name: Verify and Prepare Delivery
-        # Dosya yerinde mi bak, değilse hata ver ki 24 dakikan boşa gitmesin
+      - name: Upload to Transfer.sh (Link Delivery)
+        # GitHub Artifacts yerine direkt internete yükle ve linki bas!
         run: |
           if [ -f "arch/arm64/boot/Image.gz" ]; then
-            cp arch/arm64/boot/Image.gz ./Xperia_1_II_Kernel.gz
-            echo "DOSYA_HAZIR=true" >> $GITHUB_ENV
+            echo "--- DOSYA BULUNDU, LINK HAZIRLANIYOR ---"
+            curl --upload-file arch/arm64/boot/Image.gz https://transfer.sh/Xperia_1_II_Kernel.gz > download_link.txt
+            echo "********************************************"
+            echo "INDIRME LINKIN BURADA:"
+            cat download_link.txt
+            echo "********************************************"
           else
-            echo "Kritik Hata: Image.gz olusmadi!"
+            echo "Hata: Kernel olusmadi!"
             exit 1
           fi
-
-      - name: Upload Kernel File
-        if: env.DOSYA_HAZIR == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: PDX203-Kernel-Final-Package
-          # Dosyayı direkt ana dizinden alıyoruz, artık 'bulamadım' diyemez
-          path: Xperia_1_II_Kernel.gz
-          if-no-files-found: error
