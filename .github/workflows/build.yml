@@ -1,4 +1,4 @@
-name: PDX203-L23-Clang-Ultimate
+name: PDX203-Final-Clean-Build
 on: [workflow_dispatch, push]
 
 jobs:
@@ -15,7 +15,6 @@ jobs:
 
       - name: Configure PDX203 Touch
         run: |
-          # Dokunmatik sürücülerini defconfig'e enjekte et
           {
             echo "CONFIG_INPUT_TOUCHSCREEN=y"
             echo "CONFIG_TOUCHSCREEN_SYNAPTICS_DSX=y"
@@ -27,7 +26,6 @@ jobs:
         run: |
           export ARCH=arm64
           make O=out pdx203_defconfig
-          # LLVM=1 ve LD=ld.lld ile modern Android 16 standartlarını zorla
           make -j$(nproc --all) O=out \
             ARCH=arm64 \
             CC=clang \
@@ -38,10 +36,8 @@ jobs:
             KBUILD_WERROR=0 \
             KCFLAGS="-w -fcommon"
 
-      - name: Export Image
-
-      - name: Upload
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PDX203-Kernel-Result
+          name: PDX203-Kernel-Final
           path: out/arch/arm64/boot/Image.gz
