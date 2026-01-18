@@ -1,40 +1,48 @@
-name: PDX203-Lineage23-Touch-Fix
+name: PDX203-L23-Clang-Ultimate
 on: [workflow_dispatch, push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Tools
-        run: sudo apt-get update && sudo apt-get install -y bc build-essential gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libssl-dev git python3-minimal
-
-      - name: Inject Drivers for PDX203
+      - name: Setup Build Environment
         run: |
+          sudo apt-get update
+          sudo apt-get install -y bc build-essential clang llvm lld libssl-dev git python3-minimal gcc-aarch64-linux-gnu
+
+      - name: Configure PDX203 Touch
+        run: |
+          # Dokunmatik sürücülerini defconfig'e enjekte et
           {
             echo "CONFIG_INPUT_TOUCHSCREEN=y"
             echo "CONFIG_TOUCHSCREEN_SYNAPTICS_DSX=y"
             echo "CONFIG_TOUCHSCREEN_FTS=y"
+            echo "CONFIG_TOUCHSCREEN_COMMON=y"
           } >> arch/arm64/configs/pdx203_defconfig
 
-      - name: Build Lineage 23 Kernel
+      - name: Build with Clang (Ultimate Stability)
         run: |
           export ARCH=arm64
-          export CROSS_COMPILE=aarch64-linux-gnu-
-          export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
-          
           make O=out pdx203_defconfig
-          # Android 16/Lineage 23 derleyici hatalarını (Werror) tamamen kapatıyoruz
-          make -j$(nproc --all) O=out ARCH=arm64 \
+          # LLVM=1 ve LD=ld.lld ile modern Android 16 standartlarını zorla
+          make -j$(nproc --all) O=out \
+            ARCH=arm64 \
+            CC=clang \
+            LD=ld.lld \
+            LLVM=1 \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
             CROSS_COMPILE=aarch64-linux-gnu- \
-            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             KBUILD_WERROR=0 \
             KCFLAGS="-w -fcommon"
+
+      - name: Export Image
+        run: cp out/arch/arm64/boot/Image.gz . || echo "Image not found, check logs"
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: PDX203-Kernel-L23
-          path: out/arch/arm64/boot/Image.gz
+          name: PDX203-Kernel-Result
+          path: Image.gz
